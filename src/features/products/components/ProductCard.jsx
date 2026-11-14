@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
 import useCartStore from "../../cart/hooks/useCartStore";
 import useWishlistStore from "../../wishlist/hooks/useWishlistStore";
+import useCompareStore from "../../compare/hooks/useCompareStore";
 
 export default function ProductCard({ product }) {
     const addToCart = useCartStore((s) => s.addToCart);
     const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
     const isInWishlist = useWishlistStore((s) => s.isInWishlist(product.id));
+    const toggleCompare = useCompareStore((s) => s.toggleCompare);
+    const isInCompare = useCompareStore((s) => s.isInCompare(product.id));
 
     const renderStars = (rating) => {
         const stars = [];
@@ -100,17 +103,38 @@ export default function ProductCard({ product }) {
                     <span className="text-xs text-gray-500 ml-1">({product.rating})</span>
                 </div>
 
-                <div className="mt-auto flex items-center justify-between">
+                <div className="mt-auto pt-2 border-t border-gray-50 flex items-center justify-between gap-2">
                     <span className="text-lg font-bold text-gray-900">
                         ${product.price.toFixed(2)}
                     </span>
-                    <button
-                        onClick={() => addToCart(product)}
-                        disabled={product.stock === 0}
-                        className="px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                    >
-                        Add to Cart
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                toggleCompare(product);
+                            }}
+                            aria-label={isInCompare ? "Remove from comparison" : "Add to compare"}
+                            title={isInCompare ? "Remove from comparison" : "Add to compare"}
+                            className={`px-2 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                                isInCompare
+                                    ? "bg-primary-50 border-primary-300 text-primary-700 font-semibold"
+                                    : "border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600"
+                            }`}
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            <span className="text-[11px]">{isInCompare ? "Comparing" : "Compare"}</span>
+                        </button>
+                        <button
+                            onClick={() => addToCart(product)}
+                            disabled={product.stock === 0}
+                            className="px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                            Add to Cart
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

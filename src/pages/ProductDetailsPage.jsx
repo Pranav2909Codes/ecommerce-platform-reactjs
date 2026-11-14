@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { getProductById } from "../features/products/services/productService";
 import useCartStore from "../features/cart/hooks/useCartStore";
 import useWishlistStore from "../features/wishlist/hooks/useWishlistStore";
+import useCompareStore from "../features/compare/hooks/useCompareStore";
 
 export default function ProductDetailsPage() {
     const { id } = useParams();
@@ -12,6 +13,8 @@ export default function ProductDetailsPage() {
     const addToCart = useCartStore((s) => s.addToCart);
     const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
     const isInWishlist = useWishlistStore((s) => s.isInWishlist(Number(id)));
+    const toggleCompare = useCompareStore((s) => s.toggleCompare);
+    const isInCompare = useCompareStore((s) => s.isInCompare(Number(id)));
 
     useEffect(() => {
         async function load() {
@@ -208,13 +211,30 @@ export default function ProductDetailsPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3 mt-auto">
+                    <div className="flex flex-wrap sm:flex-nowrap gap-3 mt-auto">
                         <button
                             onClick={() => addToCart(product)}
                             disabled={product.stock === 0}
-                            className="flex-1 px-6 py-3.5 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                            className="flex-1 px-6 py-3.5 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
                         >
                             Add to Cart
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => toggleCompare(product)}
+                            aria-label={isInCompare ? "Remove from comparison" : "Add to compare"}
+                            className={`px-4 py-3.5 rounded-xl border-2 transition-all cursor-pointer inline-flex items-center gap-2 ${
+                                isInCompare
+                                    ? "border-primary-500 bg-primary-50 text-primary-700 font-semibold"
+                                    : "border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-600"
+                            }`}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            <span className="text-sm font-medium">
+                                {isInCompare ? "Comparing" : "Compare"}
+                            </span>
                         </button>
                         <button
                             onClick={() => toggleWishlist(product)}

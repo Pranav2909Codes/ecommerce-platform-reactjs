@@ -5,10 +5,11 @@ import { MemoryRouter } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import useWishlistStore from "../../wishlist/hooks/useWishlistStore";
 import useCartStore from "../../cart/hooks/useCartStore";
+import useCompareStore from "../../compare/hooks/useCompareStore";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-describe("ProductCard Wishlist Toggle", () => {
+describe("ProductCard Wishlist and Compare Toggles", () => {
     let container;
     let root;
 
@@ -29,6 +30,7 @@ describe("ProductCard Wishlist Toggle", () => {
 
         useWishlistStore.getState().clearWishlist();
         useCartStore.getState().clearCart();
+        useCompareStore.getState().clearCompare();
     });
 
     afterEach(() => {
@@ -67,5 +69,37 @@ describe("ProductCard Wishlist Toggle", () => {
 
         expect(useWishlistStore.getState().isInWishlist(10)).toBe(false);
         expect(heartButton.getAttribute("aria-label")).toBe("Add to wishlist");
+    });
+
+    it("should toggle compare state when Add to Compare button is clicked", async () => {
+        await act(async () => {
+            root.render(
+                <MemoryRouter>
+                    <ProductCard product={mockProduct} />
+                </MemoryRouter>
+            );
+        });
+
+        const compareButton = container.querySelector('button[aria-label*="compare"]');
+        expect(compareButton).toBeTruthy();
+        expect(compareButton.getAttribute("aria-label")).toBe("Add to compare");
+        expect(useCompareStore.getState().isInCompare(10)).toBe(false);
+
+        // Click to add to compare
+        await act(async () => {
+            compareButton.click();
+        });
+
+        expect(useCompareStore.getState().isInCompare(10)).toBe(true);
+        expect(compareButton.getAttribute("aria-label")).toBe("Remove from comparison");
+        expect(container.textContent).toContain("Comparing");
+
+        // Click again to remove from compare
+        await act(async () => {
+            compareButton.click();
+        });
+
+        expect(useCompareStore.getState().isInCompare(10)).toBe(false);
+        expect(compareButton.getAttribute("aria-label")).toBe("Add to compare");
     });
 });

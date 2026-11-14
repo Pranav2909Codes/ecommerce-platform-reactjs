@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import useCartStore from "../features/cart/hooks/useCartStore";
 import useWishlistStore from "../features/wishlist/hooks/useWishlistStore";
+import useCompareStore from "../features/compare/hooks/useCompareStore";
 
 export default function Navbar() {
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -9,6 +10,8 @@ export default function Navbar() {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const wishlistItems = useWishlistStore((s) => s.items);
     const totalWishlistItems = wishlistItems.length;
+    const compareItems = useCompareStore((s) => s.items);
+    const totalCompareItems = compareItems.length;
 
     const links = [
         { to: "/", label: "Home" },
@@ -43,6 +46,11 @@ export default function Navbar() {
                                 {link.to === "/wishlist" && totalWishlistItems > 0 && (
                                     <span className="bg-accent-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
                                         {totalWishlistItems}
+                                    </span>
+                                )}
+                                {link.to === "/compare" && totalCompareItems > 0 && (
+                                    <span className="bg-primary-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                        {totalCompareItems}
                                     </span>
                                 )}
                             </Link>
@@ -95,6 +103,11 @@ export default function Navbar() {
                                 {link.to === "/wishlist" && totalWishlistItems > 0 && (
                                     <span className="bg-accent-500 text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
                                         {totalWishlistItems}
+                                    </span>
+                                )}
+                                {link.to === "/compare" && totalCompareItems > 0 && (
+                                    <span className="bg-primary-600 text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                                        {totalCompareItems}
                                     </span>
                                 )}
                             </Link>

@@ -150,11 +150,11 @@ Product comparison is a key conversion feature in e-commerce. Implementation inv
 - Users can clear selections and compare different products
 
 ### Acceptance Criteria
-- [ ] Two products can be selected for comparison
-- [ ] All fields are displayed in the comparison table
-- [ ] Better values are visually highlighted
-- [ ] Users can swap or clear selected products
-- [ ] Cannot compare a product with itself
+- [x] Two products can be selected for comparison
+- [x] All fields are displayed in the comparison table
+- [x] Better values are visually highlighted
+- [x] Users can swap or clear selected products
+- [x] Cannot compare a product with itself
 
 ### Edge Cases
 - Selecting the same product in both dropdowns
