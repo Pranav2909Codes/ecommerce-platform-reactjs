@@ -38,15 +38,24 @@ export async function getReviewsByProductId(productId) {
 export async function filterProducts({
     search = "",
     category = "",
+    selectedCategory = "",
     minPrice = 0,
     maxPrice = Infinity,
     sortBy = "title",
     sortOrder = "asc",
     page = 1,
+    currentPage,
     limit = 8,
+    productsPerPage,
 } = {}) {
     await wait(500);
     let filtered = [...products];
+
+    const activeCategory = selectedCategory || category || "";
+    const activePage = currentPage !== undefined ? currentPage : page;
+    const activeLimit = productsPerPage !== undefined ? productsPerPage : limit;
+    const numMinPrice = minPrice !== "" && minPrice !== null && minPrice !== undefined ? Number(minPrice) : 0;
+    const numMaxPrice = maxPrice !== "" && maxPrice !== null && maxPrice !== undefined ? Number(maxPrice) : Infinity;
 
     // Apply search
     if (search) {
@@ -59,13 +68,13 @@ export async function filterProducts({
     }
 
     // Apply category filter
-    if (category) {
-        filtered = filtered.filter((p) => p.category === category);
+    if (activeCategory) {
+        filtered = filtered.filter((p) => p.category === activeCategory);
     }
 
     // Apply price range filter
     filtered = filtered.filter(
-        (p) => p.price >= minPrice && p.price <= maxPrice
+        (p) => p.price >= numMinPrice && p.price <= numMaxPrice
     );
 
     // Apply sorting
@@ -88,15 +97,15 @@ export async function filterProducts({
 
     // Calculate pagination AFTER filtering
     const total = filtered.length;
-    const totalPages = Math.ceil(total / limit);
-    const startIndex = (page - 1) * limit;
-    const data = filtered.slice(startIndex, startIndex + limit);
+    const totalPages = Math.ceil(total / activeLimit);
+    const startIndex = (activePage - 1) * activeLimit;
+    const data = filtered.slice(startIndex, startIndex + activeLimit);
 
     return Promise.resolve({
         data,
         total,
-        page,
+        page: activePage,
         totalPages,
-        limit,
+        limit: activeLimit,
     });
 }

@@ -1,41 +1,116 @@
 import { useState, useEffect } from "react";
-import { getProducts, getCategories } from "../features/products/services/productService";
+import { useSearchParams } from "react-router-dom";
+import { filterProducts, getCategories } from "../services/productService";
 import ProductCard from "../features/products/components/ProductCard";
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState([]);
+    const [searchParams] = useSearchParams();
+
+    // State for the returned product listing object { data, total, page, totalPages, limit }
+    const productsPerPage = 8;
+    const [productsResponse, setProductsResponse] = useState({
+        data: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+        limit: productsPerPage,
+    });
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Basic state — not wired to filterProducts yet (student task)
-    const [search, setSearch] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("");
+    // Filter, sort, and pagination state
+    const [search, setSearch] = useState(searchParams.get("search") || "");
+    const [selectedCategory, setSelectedCategory] = useState(
+        searchParams.get("category") || ""
+    );
     const [sortBy, setSortBy] = useState("title");
     const [sortOrder, setSortOrder] = useState("asc");
     const [currentPage, setCurrentPage] = useState(1);
-    const productsPerPage = 8;
+    const [minPrice, setMinPrice] = useState("");
+    const [maxPrice, setMaxPrice] = useState("");
 
+    // Load available categories once on mount
     useEffect(() => {
-        async function load() {
-            setLoading(true);
-            // Currently just loads all products — students should use filterProducts()
-            const allProducts = await getProducts();
-            setProducts(allProducts);
-            const cats = await getCategories();
-            setCategories(cats);
-            // Simulate a short loading time so the spinner is visible
-            setTimeout(() => setLoading(false), 600);
+        async function loadCategories() {
+            try {
+                const cats = await getCategories();
+                setCategories(cats);
+            } catch (error) {
+                console.error("Failed to load categories:", error);
+            }
         }
-        load();
+        loadCategories();
     }, []);
 
-    // Basic client-side pagination (not using filterProducts — student task)
-    const startIndex = (currentPage - 1) * productsPerPage;
-    const paginatedProducts = products.slice(
-        startIndex,
-        startIndex + productsPerPage
+    // Sync category if URL search parameters change externally
+    useEffect(() => {
+        const cat = searchParams.get("category");
+        if (cat !== null && cat !== selectedCategory) {
+            setSelectedCategory(cat);
+            setCurrentPage(1);
+        }
+    }, [searchParams, selectedCategory]);
+
+    // Fetch filtered products whenever any filter, sort, or pagination parameter changes
+    useEffect(() => {
+        let ignore = false;
+
+        async function fetchFilteredProducts() {
+            setLoading(true);
+            try {
+                const result = await filterProducts({
+                    search,
+                    selectedCategory,
+                    category: selectedCategory,
+                    sortBy,
+                    sortOrder,
+                    currentPage,
+                    page: currentPage,
+                    productsPerPage,
+                    limit: productsPerPage,
+                    minPrice: minPrice !== "" ? Number(minPrice) : 0,
+                    maxPrice: maxPrice !== "" ? Number(maxPrice) : Infinity,
+                });
+
+                if (!ignore) {
+                    setProductsResponse(result);
+                }
+            } catch (error) {
+                if (!ignore) {
+                    console.error("Failed to fetch products:", error);
+                }
+            } finally {
+                if (!ignore) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        fetchFilteredProducts();
+
+        return () => {
+            ignore = true;
+        };
+    }, [
+        search,
+        selectedCategory,
+        sortBy,
+        sortOrder,
+        currentPage,
+        productsPerPage,
+        minPrice,
+        maxPrice,
+    ]);
+
+    const { data: products, total, totalPages } = productsResponse;
+    const isFiltered = Boolean(
+        search ||
+        selectedCategory ||
+        minPrice ||
+        maxPrice ||
+        sortBy !== "title" ||
+        sortOrder !== "asc"
     );
-    const totalPages = Math.ceil(products.length / productsPerPage);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -43,13 +118,13 @@ export default function ProductsPage() {
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">All Products</h1>
                 <p className="text-gray-500">
-                    Browse our collection of {products.length} premium products
+                    Browse our collection of {total} premium products
                 </p>
             </div>
 
             {/* Filters Bar */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8">
-                <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
                     {/* Search */}
                     <div className="flex-1 relative">
                         <svg
@@ -69,7 +144,10 @@ export default function ProductsPage() {
                             type="text"
                             placeholder="Search products..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setCurrentPage(1);
+                            }}
                             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         />
                     </div>
@@ -77,7 +155,10 @@ export default function ProductsPage() {
                     {/* Category Filter */}
                     <select
                         value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        onChange={(e) => {
+                            setSelectedCategory(e.target.value);
+                            setCurrentPage(1);
+                        }}
                         className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                     >
                         <option value="">All Categories</option>
@@ -95,6 +176,7 @@ export default function ProductsPage() {
                             const [by, order] = e.target.value.split("-");
                             setSortBy(by);
                             setSortOrder(order);
+                            setCurrentPage(1);
                         }}
                         className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                     >
@@ -104,6 +186,58 @@ export default function ProductsPage() {
                         <option value="price-desc">Price: High → Low</option>
                         <option value="rating-desc">Rating: Best First</option>
                     </select>
+
+                    {/* Price Range Filter (Bonus UI) */}
+                    <div className="flex items-center gap-2">
+                        <div className="relative w-24">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="Min"
+                                value={minPrice}
+                                onChange={(e) => {
+                                    setMinPrice(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full pl-6 pr-2 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                            />
+                        </div>
+                        <span className="text-gray-400 text-sm">-</span>
+                        <div className="relative w-24">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="Max"
+                                value={maxPrice}
+                                onChange={(e) => {
+                                    setMaxPrice(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full pl-6 pr-2 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Reset Filters Button */}
+                    {isFiltered && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSearch("");
+                                setSelectedCategory("");
+                                setSortBy("title");
+                                setSortOrder("asc");
+                                setMinPrice("");
+                                setMaxPrice("");
+                                setCurrentPage(1);
+                            }}
+                            className="px-3 py-2 text-xs font-medium text-gray-600 hover:text-primary-600 hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors whitespace-nowrap cursor-pointer"
+                        >
+                            Reset
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -117,13 +251,13 @@ export default function ProductsPage() {
                 <>
                     {/* Product Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-                        {paginatedProducts.map((product) => (
+                        {products.map((product) => (
                             <ProductCard key={product.id} product={product} />
                         ))}
                     </div>
 
                     {/* Empty State */}
-                    {paginatedProducts.length === 0 && (
+                    {products.length === 0 && (
                         <div className="text-center py-16">
                             <svg
                                 className="w-16 h-16 text-gray-300 mx-auto mb-4"
@@ -148,7 +282,7 @@ export default function ProductsPage() {
                             <button
                                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
-                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                             >
                                 Previous
                             </button>
@@ -157,10 +291,11 @@ export default function ProductsPage() {
                                     <button
                                         key={pageNum}
                                         onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum
-                                            ? "bg-primary-600 text-white"
-                                            : "text-gray-600 hover:bg-gray-50"
-                                            }`}
+                                        className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                                            currentPage === pageNum
+                                                ? "bg-primary-600 text-white"
+                                                : "text-gray-600 hover:bg-gray-50"
+                                        }`}
                                     >
                                         {pageNum}
                                     </button>
@@ -171,7 +306,7 @@ export default function ProductsPage() {
                                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                                 }
                                 disabled={currentPage === totalPages}
-                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                             >
                                 Next
                             </button>

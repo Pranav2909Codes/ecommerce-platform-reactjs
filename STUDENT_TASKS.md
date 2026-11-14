@@ -29,12 +29,12 @@ Real e-commerce apps process filtering, sorting, and pagination server-side. Usi
 - All filters can be combined (e.g., search "leather" + category "Fashion" + price low-to-high)
 
 ### Acceptance Criteria
-- [ ] Search filters products in real-time (debounce optional)
-- [ ] Category dropdown filters products
-- [ ] Sort dropdown reorders products
-- [ ] Pagination reflects filtered totals, not total product count
-- [ ] Changing any filter resets pagination to page 1
-- [ ] Empty search shows all products
+- [x] Search filters products in real-time (debounce optional)
+- [x] Category dropdown filters products
+- [x] Sort dropdown reorders products
+- [x] Pagination reflects filtered totals, not total product count
+- [x] Changing any filter resets pagination to page 1
+- [x] Empty search shows all products
 
 ### Edge Cases
 - Search query that matches zero products

@@ -129,5 +129,47 @@ describe('productService', () => {
             expect(result.totalPages).toBe(2);
             expect(result.total).toBe(3);
         });
+
+        it('should support selectedCategory, currentPage, and productsPerPage parameter names', async () => {
+            const result = await filterProducts({
+                selectedCategory: 'Electronics',
+                currentPage: 2,
+                productsPerPage: 1,
+            });
+            expect(result.data).toHaveLength(1);
+            expect(result.page).toBe(2);
+            expect(result.limit).toBe(1);
+            expect(result.totalPages).toBe(2);
+            expect(result.total).toBe(2);
+        });
+
+        it('should return empty array when search matches zero products', async () => {
+            const result = await filterProducts({ search: 'NonExistentProductQuery' });
+            expect(result.data).toHaveLength(0);
+            expect(result.total).toBe(0);
+            expect(result.totalPages).toBe(0);
+        });
+
+        it('should combine search, category, and price filters properly', async () => {
+            const result = await filterProducts({
+                search: 'Product',
+                selectedCategory: 'Electronics',
+                minPrice: 120,
+                maxPrice: 200,
+                sortBy: 'price',
+                sortOrder: 'desc',
+            });
+            expect(result.data).toHaveLength(1);
+            expect(result.data[0].id).toBe(3);
+            expect(result.total).toBe(1);
+        });
+    });
+
+    describe('src/services/productService re-export', () => {
+        it('should correctly re-export filterProducts and getCategories from service entrypoint', async () => {
+            const serviceModule = await import('../../../services/productService');
+            expect(typeof serviceModule.filterProducts).toBe('function');
+            expect(typeof serviceModule.getCategories).toBe('function');
+        });
     });
 });
