@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import useCartStore from "../features/cart/hooks/useCartStore";
+import { validateField, validateForm } from "../utils/checkoutValidation";
 
 export default function CheckoutPage() {
     const items = useCartStore((s) => s.items);
@@ -18,18 +19,76 @@ export default function CheckoutPage() {
         country: "",
     });
 
+    const [errors, setErrors] = useState({});
+    const [touched, setTouched] = useState({});
+    const [submitted, setSubmitted] = useState(false);
+
     const totalPrice = items.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
     );
 
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+    const isFieldInvalid = (fieldName) => {
+        return (submitted || touched[fieldName]) && Boolean(errors[fieldName]);
     };
 
-    // No validation implemented — student task
+    const inputClassName = (fieldName) =>
+        `w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors ${
+            isFieldInvalid(fieldName)
+                ? "border-red-500 text-gray-900 focus:ring-red-400 focus:border-red-500"
+                : "border-gray-200 focus:ring-primary-500 focus:border-transparent"
+        }`;
+
+    const selectClassName = (fieldName) =>
+        `w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 bg-white transition-colors ${
+            isFieldInvalid(fieldName)
+                ? "border-red-500 focus:ring-red-400 focus:border-red-500"
+                : "border-gray-200 focus:ring-primary-500"
+        }`;
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setForm((prev) => ({ ...prev, [name]: value }));
+
+        if (submitted || touched[name]) {
+            const error = validateField(name, value);
+            setErrors((prev) => {
+                const next = { ...prev };
+                if (error) {
+                    next[name] = error;
+                } else {
+                    delete next[name];
+                }
+                return next;
+            });
+        }
+    };
+
+    const handleBlur = (e) => {
+        const { name, value } = e.target;
+        setTouched((prev) => ({ ...prev, [name]: true }));
+        const error = validateField(name, value);
+        setErrors((prev) => {
+            const next = { ...prev };
+            if (error) {
+                next[name] = error;
+            } else {
+                delete next[name];
+            }
+            return next;
+        });
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        setSubmitted(true);
+        const formErrors = validateForm(form);
+        setErrors(formErrors);
+
+        if (Object.keys(formErrors).length > 0) {
+            return;
+        }
+
         clearCart();
         setOrderPlaced(true);
     };
@@ -97,7 +156,7 @@ export default function CheckoutPage() {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Shipping Form */}
                     <div className="lg:col-span-2">
@@ -115,9 +174,16 @@ export default function CheckoutPage() {
                                         name="firstName"
                                         value={form.firstName}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("firstName")}
+                                        className={inputClassName("firstName")}
                                         placeholder="John"
                                     />
+                                    {isFieldInvalid("firstName") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-firstName">
+                                            {errors.firstName}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -128,9 +194,16 @@ export default function CheckoutPage() {
                                         name="lastName"
                                         value={form.lastName}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("lastName")}
+                                        className={inputClassName("lastName")}
                                         placeholder="Doe"
                                     />
+                                    {isFieldInvalid("lastName") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-lastName">
+                                            {errors.lastName}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -141,9 +214,16 @@ export default function CheckoutPage() {
                                         name="email"
                                         value={form.email}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("email")}
+                                        className={inputClassName("email")}
                                         placeholder="john@example.com"
                                     />
+                                    {isFieldInvalid("email") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-email">
+                                            {errors.email}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -154,9 +234,16 @@ export default function CheckoutPage() {
                                         name="phone"
                                         value={form.phone}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("phone")}
+                                        className={inputClassName("phone")}
                                         placeholder="+1 (555) 000-0000"
                                     />
+                                    {isFieldInvalid("phone") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-phone">
+                                            {errors.phone}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="sm:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -167,9 +254,16 @@ export default function CheckoutPage() {
                                         name="address"
                                         value={form.address}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("address")}
+                                        className={inputClassName("address")}
                                         placeholder="123 Main Street"
                                     />
+                                    {isFieldInvalid("address") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-address">
+                                            {errors.address}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -180,9 +274,16 @@ export default function CheckoutPage() {
                                         name="city"
                                         value={form.city}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("city")}
+                                        className={inputClassName("city")}
                                         placeholder="New York"
                                     />
+                                    {isFieldInvalid("city") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-city">
+                                            {errors.city}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -193,9 +294,16 @@ export default function CheckoutPage() {
                                         name="zipCode"
                                         value={form.zipCode}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("zipCode")}
+                                        className={inputClassName("zipCode")}
                                         placeholder="10001"
                                     />
+                                    {isFieldInvalid("zipCode") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-zipCode">
+                                            {errors.zipCode}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="sm:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -205,7 +313,9 @@ export default function CheckoutPage() {
                                         name="country"
                                         value={form.country}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                                        onBlur={handleBlur}
+                                        aria-invalid={isFieldInvalid("country")}
+                                        className={selectClassName("country")}
                                     >
                                         <option value="">Select country</option>
                                         <option value="US">United States</option>
@@ -215,6 +325,11 @@ export default function CheckoutPage() {
                                         <option value="FR">France</option>
                                         <option value="AU">Australia</option>
                                     </select>
+                                    {isFieldInvalid("country") && (
+                                        <p className="mt-1 text-xs text-red-500" data-testid="error-country">
+                                            {errors.country}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>

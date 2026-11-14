@@ -232,13 +232,13 @@ Form validation prevents invalid data submission and improves UX. It demonstrate
 - Error messages disappear when the field is corrected
 
 ### Acceptance Criteria
-- [ ] All fields require non-empty values
-- [ ] Email validation with proper regex
-- [ ] Phone validation with proper regex
-- [ ] Inline error messages displayed below fields
-- [ ] Form cannot be submitted with errors
-- [ ] Errors clear when fields are corrected
-- [ ] Error styles (red border, red text) applied to invalid fields
+- [x] All fields require non-empty values
+- [x] Email validation with proper regex
+- [x] Phone validation with proper regex
+- [x] Inline error messages displayed below fields
+- [x] Form cannot be submitted with errors
+- [x] Errors clear when fields are corrected
+- [x] Error styles (red border, red text) applied to invalid fields
 
 ### Edge Cases
 - Whitespace-only input (should be treated as empty)
