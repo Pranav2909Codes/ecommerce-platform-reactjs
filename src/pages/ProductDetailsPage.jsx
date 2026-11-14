@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getProductById } from "../features/products/services/productService";
+import { getProductById, getReviewsByProductId } from "../services/productService";
 import useCartStore from "../features/cart/hooks/useCartStore";
 import useWishlistStore from "../features/wishlist/hooks/useWishlistStore";
 import useCompareStore from "../features/compare/hooks/useCompareStore";
@@ -9,6 +9,9 @@ export default function ProductDetailsPage() {
     const { id } = useParams();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [reviews, setReviews] = useState([]);
+    const [loadingReviews, setLoadingReviews] = useState(true);
+    const [showAllReviews, setShowAllReviews] = useState(false);
     const [countdown, setCountdown] = useState(null);
     const addToCart = useCartStore((s) => s.addToCart);
     const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
@@ -17,13 +20,56 @@ export default function ProductDetailsPage() {
     const isInCompare = useCompareStore((s) => s.isInCompare(Number(id)));
 
     useEffect(() => {
-        async function load() {
+        let isMounted = true;
+        setShowAllReviews(false);
+
+        async function loadProduct() {
             setLoading(true);
-            const p = await getProductById(id);
-            setProduct(p);
-            setLoading(false);
+            try {
+                const p = await getProductById(id);
+                if (isMounted) {
+                    setProduct(p);
+                }
+            } catch (err) {
+                console.error("Failed to load product", err);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
         }
-        load();
+
+        async function loadReviews() {
+            setLoadingReviews(true);
+            try {
+                const r = await getReviewsByProductId(id);
+                if (isMounted) {
+                    const reviewList = Array.isArray(r) ? r : [];
+                    const sorted = [...reviewList].sort((a, b) => {
+                        const dateA = a.date ? new Date(a.date).getTime() : 0;
+                        const dateB = b.date ? new Date(b.date).getTime() : 0;
+                        return dateB - dateA;
+                    });
+                    setReviews(sorted);
+                }
+            } catch (err) {
+                console.error("Failed to load reviews", err);
+                if (isMounted) {
+                    setReviews([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoadingReviews(false);
+                }
+            }
+        }
+
+        loadProduct();
+        loadReviews();
+
+        return () => {
+            isMounted = false;
+        };
     }, [id]);
 
     useEffect(() => {
@@ -62,13 +108,14 @@ export default function ProductDetailsPage() {
         return { days, hours, minutes, seconds };
     };
 
-    const renderStars = (rating) => {
+    const renderStars = (rating, size = "w-5 h-5") => {
         const stars = [];
         for (let i = 1; i <= 5; i++) {
             stars.push(
                 <svg
                     key={i}
-                    className={`w-5 h-5 ${i <= Math.round(rating)
+                    data-testid={`star-${i}`}
+                    className={`${size} ${i <= Math.round(rating)
                         ? "text-amber-400 fill-current"
                         : "text-gray-300 fill-current"
                         }`}
@@ -79,6 +126,12 @@ export default function ProductDetailsPage() {
             );
         }
         return stars;
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return "";
+        const parsed = new Date(dateString);
+        return isNaN(parsed.getTime()) ? dateString : parsed.toLocaleDateString();
     };
 
     if (loading) {
@@ -106,6 +159,10 @@ export default function ProductDetailsPage() {
     }
 
     const time = formatCountdown(countdown);
+    const averageRating = reviews.length > 0
+        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+        : "0.0";
+    const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 5);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -254,16 +311,100 @@ export default function ProductDetailsPage() {
                         </button>
                     </div>
 
-                    {/* Reviews Placeholder — Student task to implement */}
-                    <div className="mt-10 border-t border-gray-100 pt-8">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4">
-                            Customer Reviews
-                        </h3>
-                        <div className="bg-gray-50 rounded-xl p-6 text-center">
-                            <p className="text-gray-400 text-sm">
-                                Reviews will be displayed here.
-                            </p>
+                    {/* Reviews Section */}
+                    <div className="mt-10 border-t border-gray-100 pt-8" data-testid="reviews-section">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900">
+                                Customer Reviews
+                            </h3>
+                            {reviews.length > 0 && (
+                                <span className="text-sm font-medium text-gray-500">
+                                    {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+                                </span>
+                            )}
                         </div>
+
+                        {loadingReviews ? (
+                            <div className="flex items-center justify-center py-8">
+                                <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                            </div>
+                        ) : reviews.length === 0 ? (
+                            <div className="bg-gray-50 rounded-xl p-8 text-center" data-testid="no-reviews">
+                                <p className="text-gray-600 font-medium">No reviews yet</p>
+                                <p className="text-gray-400 text-sm mt-1">Be the first to review this product!</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {/* Aggregate Summary */}
+                                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-wrap items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div>
+                                            <div className="text-3xl font-bold text-gray-900" data-testid="average-rating">
+                                                {averageRating}
+                                            </div>
+                                            <div className="text-xs text-gray-500">out of 5 stars</div>
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-0.5" aria-label={`Average rating: ${averageRating} out of 5 stars`}>
+                                                {renderStars(Number(averageRating))}
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Based on {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-sm font-semibold text-gray-700 bg-white px-3.5 py-1.5 rounded-full border border-gray-200 shadow-xs">
+                                        {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+                                    </div>
+                                </div>
+
+                                {/* Review Cards List */}
+                                <div className="space-y-4" data-testid="reviews-list">
+                                    {visibleReviews.map((review) => (
+                                        <div
+                                            key={review.id}
+                                            className="bg-white border border-gray-100 rounded-2xl p-5 shadow-xs transition-shadow hover:shadow-sm"
+                                            data-testid="review-card"
+                                        >
+                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                                <div>
+                                                    <h4 className="font-semibold text-gray-900 text-base">
+                                                        {review.user}
+                                                    </h4>
+                                                    <div
+                                                        className="flex items-center gap-0.5 mt-1"
+                                                        aria-label={`Rating: ${review.rating} out of 5 stars`}
+                                                    >
+                                                        {renderStars(review.rating, "w-4 h-4")}
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs text-gray-400 whitespace-nowrap">
+                                                    {formatDate(review.date)}
+                                                </span>
+                                            </div>
+                                            <p className="text-gray-600 text-sm leading-relaxed mt-2">
+                                                {review.comment}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Show All / Show Less button when > 5 reviews */}
+                                {reviews.length > 5 && (
+                                    <div className="text-center pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAllReviews((prev) => !prev)}
+                                            className="text-sm font-semibold text-primary-600 hover:text-primary-700 cursor-pointer"
+                                        >
+                                            {showAllReviews
+                                                ? "Show less"
+                                                : `Show all (${reviews.length}) reviews`}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

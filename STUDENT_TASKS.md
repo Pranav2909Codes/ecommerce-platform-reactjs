@@ -190,11 +190,11 @@ Reviews build trust and influence purchase decisions. This task involves data fe
 - Products with no reviews show "No reviews yet"
 
 ### Acceptance Criteria
-- [ ] Reviews are fetched using `getReviewsByProductId`
-- [ ] Each review displays all fields (user, rating, comment, date)
-- [ ] Average rating is calculated correctly
-- [ ] Reviews are sorted newest first
-- [ ] Empty state shown for products without reviews
+- [x] Reviews are fetched using `getReviewsByProductId`
+- [x] Each review displays all fields (user, rating, comment, date)
+- [x] Average rating is calculated correctly
+- [x] Reviews are sorted newest first
+- [x] Empty state shown for products without reviews
 
 ### Edge Cases
 - Products with zero reviews
