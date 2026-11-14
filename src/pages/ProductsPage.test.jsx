@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import ProductsPage from "./ProductsPage";
 import * as productService from "../services/productService";
 
@@ -11,6 +11,11 @@ vi.mock("../services/productService", () => ({
     getCategories: vi.fn(),
     filterProducts: vi.fn(),
 }));
+
+function LocationDisplay() {
+    const location = useLocation();
+    return <span data-testid="location">{location.pathname + location.search}</span>;
+}
 
 describe("ProductsPage", () => {
     let container;
@@ -58,7 +63,6 @@ describe("ProductsPage", () => {
             );
         });
 
-        // Wait for promises in useEffect
         await act(async () => {
             await Promise.resolve();
         });
@@ -289,5 +293,185 @@ describe("ProductsPage", () => {
                 currentPage: 1,
             })
         );
+    });
+
+    describe("URL Query Parameters (Task 2)", () => {
+        it("should read initial state from URL parameters on page load", async () => {
+            await act(async () => {
+                root.render(
+                    <MemoryRouter
+                        initialEntries={[
+                            "/products?category=Electronics&sortBy=price&sortOrder=asc&page=2",
+                        ]}
+                    >
+                        <ProductsPage />
+                    </MemoryRouter>
+                );
+            });
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(productService.filterProducts).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selectedCategory: "Electronics",
+                    sortBy: "price",
+                    sortOrder: "asc",
+                    currentPage: 2,
+                })
+            );
+
+            const categorySelect = container.querySelectorAll("select")[0];
+            const sortSelect = container.querySelectorAll("select")[1];
+            expect(categorySelect.value).toBe("Electronics");
+            expect(sortSelect.value).toBe("price-asc");
+        });
+
+        it("should reflect filter and sort changes in the URL query parameters in real time", async () => {
+            await act(async () => {
+                root.render(
+                    <MemoryRouter initialEntries={["/products"]}>
+                        <LocationDisplay />
+                        <ProductsPage />
+                    </MemoryRouter>
+                );
+            });
+
+            const locationEl = container.querySelector('[data-testid="location"]');
+            expect(locationEl.textContent).toBe("/products");
+
+            // Change category
+            const categorySelect = container.querySelectorAll("select")[0];
+            await act(async () => {
+                categorySelect.value = "Fashion";
+                categorySelect.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+
+            expect(locationEl.textContent).toContain("category=Fashion");
+
+            // Change sort
+            const sortSelect = container.querySelectorAll("select")[1];
+            await act(async () => {
+                sortSelect.value = "price-asc";
+                sortSelect.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+
+            expect(locationEl.textContent).toContain("category=Fashion");
+            expect(locationEl.textContent).toContain("sortBy=price");
+            expect(locationEl.textContent).toContain("sortOrder=asc");
+        });
+
+        it("should omit empty and default values from URL (clean URLs)", async () => {
+            await act(async () => {
+                root.render(
+                    <MemoryRouter initialEntries={["/products?category=Fashion"]}>
+                        <LocationDisplay />
+                        <ProductsPage />
+                    </MemoryRouter>
+                );
+            });
+
+            const locationEl = container.querySelector('[data-testid="location"]');
+            expect(locationEl.textContent).toContain("category=Fashion");
+
+            // Reset filters
+            const resetButton = Array.from(container.querySelectorAll("button")).find(
+                (b) => b.textContent.trim() === "Reset"
+            );
+            expect(resetButton).toBeTruthy();
+
+            await act(async () => {
+                resetButton.click();
+            });
+
+            // URL should be clean with no query parameters
+            expect(locationEl.textContent).toBe("/products");
+        });
+
+        it("should handle invalid parameters in URL gracefully", async () => {
+            productService.filterProducts.mockResolvedValueOnce({
+                data: [],
+                total: 8,
+                page: 999,
+                totalPages: 1,
+                limit: 8,
+            });
+
+            await act(async () => {
+                root.render(
+                    <MemoryRouter
+                        initialEntries={[
+                            "/products?category=NonExistent&sortBy=invalidSort&sortOrder=invalidOrder&page=999",
+                        ]}
+                    >
+                        <LocationDisplay />
+                        <ProductsPage />
+                    </MemoryRouter>
+                );
+            });
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            // Fallback sort applied
+            expect(productService.filterProducts).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selectedCategory: "NonExistent",
+                    sortBy: "title",
+                    sortOrder: "asc",
+                })
+            );
+
+            // Category select has NonExistent option
+            const categorySelect = container.querySelectorAll("select")[0];
+            expect(categorySelect.value).toBe("NonExistent");
+        });
+
+        it("should restore previous filter state when navigating back and forward", async () => {
+            let navigateFn;
+            function NavigationHelper() {
+                const navigate = useNavigate();
+                navigateFn = navigate;
+                return null;
+            }
+
+            await act(async () => {
+                root.render(
+                    <MemoryRouter initialEntries={["/products"]}>
+                        <NavigationHelper />
+                        <LocationDisplay />
+                        <ProductsPage />
+                    </MemoryRouter>
+                );
+            });
+
+            const categorySelect = container.querySelectorAll("select")[0];
+
+            // Change to Fashion
+            await act(async () => {
+                categorySelect.value = "Fashion";
+                categorySelect.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+
+            expect(categorySelect.value).toBe("Fashion");
+
+            // Navigate back
+            await act(async () => {
+                navigateFn(-1);
+            });
+
+            // State should restore to initial (empty category)
+            expect(categorySelect.value).toBe("");
+
+            // Navigate forward
+            await act(async () => {
+                navigateFn(1);
+            });
+
+            // State should restore to Fashion
+            expect(categorySelect.value).toBe("Fashion");
+        });
     });
 });

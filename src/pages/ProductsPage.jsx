@@ -1,10 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { filterProducts, getCategories } from "../services/productService";
 import ProductCard from "../features/products/components/ProductCard";
 
+const parseParams = (params) => {
+    const rawSearch = params.get("search") || "";
+    const rawCategory = params.get("category") || params.get("selectedCategory") || "";
+    const rawSortBy = params.get("sortBy") || "title";
+    const rawSortOrder = params.get("sortOrder") || "asc";
+    const rawPage = parseInt(params.get("page") || params.get("currentPage"), 10);
+    const rawMinPrice = params.get("minPrice") || "";
+    const rawMaxPrice = params.get("maxPrice") || "";
+
+    const validSortBy = ["title", "price", "rating"].includes(rawSortBy)
+        ? rawSortBy
+        : "title";
+    const validSortOrder = ["asc", "desc"].includes(rawSortOrder)
+        ? rawSortOrder
+        : "asc";
+    const validPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+    return {
+        search: rawSearch,
+        selectedCategory: rawCategory,
+        sortBy: validSortBy,
+        sortOrder: validSortOrder,
+        currentPage: validPage,
+        minPrice: rawMinPrice,
+        maxPrice: rawMaxPrice,
+    };
+};
+
 export default function ProductsPage() {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // State for the returned product listing object { data, total, page, totalPages, limit }
     const productsPerPage = 8;
@@ -18,16 +46,68 @@ export default function ProductsPage() {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Filter, sort, and pagination state
-    const [search, setSearch] = useState(searchParams.get("search") || "");
+    // Filter, sort, and pagination state initialized from URL query parameters
+    const [search, setSearch] = useState(() => parseParams(searchParams).search);
     const [selectedCategory, setSelectedCategory] = useState(
-        searchParams.get("category") || ""
+        () => parseParams(searchParams).selectedCategory
     );
-    const [sortBy, setSortBy] = useState("title");
-    const [sortOrder, setSortOrder] = useState("asc");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [minPrice, setMinPrice] = useState("");
-    const [maxPrice, setMaxPrice] = useState("");
+    const [sortBy, setSortBy] = useState(() => parseParams(searchParams).sortBy);
+    const [sortOrder, setSortOrder] = useState(
+        () => parseParams(searchParams).sortOrder
+    );
+    const [currentPage, setCurrentPage] = useState(
+        () => parseParams(searchParams).currentPage
+    );
+    const [minPrice, setMinPrice] = useState(
+        () => parseParams(searchParams).minPrice
+    );
+    const [maxPrice, setMaxPrice] = useState(
+        () => parseParams(searchParams).maxPrice
+    );
+
+    // Build URL search parameters omitting empty/default values for clean URLs
+    const buildParams = useCallback(
+        ({
+            searchVal = search,
+            categoryVal = selectedCategory,
+            sortByVal = sortBy,
+            sortOrderVal = sortOrder,
+            pageVal = currentPage,
+            minPriceVal = minPrice,
+            maxPriceVal = maxPrice,
+        } = {}) => {
+            const nextParams = {};
+            if (searchVal && searchVal.trim()) {
+                nextParams.search = searchVal.trim();
+            }
+            if (categoryVal) {
+                nextParams.category = categoryVal;
+            }
+            if (sortByVal !== "title" || sortOrderVal !== "asc") {
+                nextParams.sortBy = sortByVal;
+                nextParams.sortOrder = sortOrderVal;
+            }
+            if (pageVal && Number(pageVal) > 1) {
+                nextParams.page = String(pageVal);
+            }
+            if (
+                minPriceVal !== "" &&
+                minPriceVal !== null &&
+                minPriceVal !== undefined
+            ) {
+                nextParams.minPrice = String(minPriceVal);
+            }
+            if (
+                maxPriceVal !== "" &&
+                maxPriceVal !== null &&
+                maxPriceVal !== undefined
+            ) {
+                nextParams.maxPrice = String(maxPriceVal);
+            }
+            return nextParams;
+        },
+        [search, selectedCategory, sortBy, sortOrder, currentPage, minPrice, maxPrice]
+    );
 
     // Load available categories once on mount
     useEffect(() => {
@@ -42,14 +122,28 @@ export default function ProductsPage() {
         loadCategories();
     }, []);
 
-    // Sync category if URL search parameters change externally
+    // Sync component state when URL search parameters change externally (e.g. browser back/forward)
     useEffect(() => {
-        const cat = searchParams.get("category");
-        if (cat !== null && cat !== selectedCategory) {
-            setSelectedCategory(cat);
-            setCurrentPage(1);
-        }
-    }, [searchParams, selectedCategory]);
+        const parsed = parseParams(searchParams);
+
+        if (parsed.search !== search) setSearch(parsed.search);
+        if (parsed.selectedCategory !== selectedCategory)
+            setSelectedCategory(parsed.selectedCategory);
+        if (parsed.sortBy !== sortBy) setSortBy(parsed.sortBy);
+        if (parsed.sortOrder !== sortOrder) setSortOrder(parsed.sortOrder);
+        if (parsed.currentPage !== currentPage) setCurrentPage(parsed.currentPage);
+        if (parsed.minPrice !== minPrice) setMinPrice(parsed.minPrice);
+        if (parsed.maxPrice !== maxPrice) setMaxPrice(parsed.maxPrice);
+    }, [
+        searchParams,
+        search,
+        selectedCategory,
+        sortBy,
+        sortOrder,
+        currentPage,
+        minPrice,
+        maxPrice,
+    ]);
 
     // Fetch filtered products whenever any filter, sort, or pagination parameter changes
     useEffect(() => {
@@ -74,6 +168,13 @@ export default function ProductsPage() {
 
                 if (!ignore) {
                     setProductsResponse(result);
+                    // Handle edge case where page in URL exceeds available pages (e.g. page=999)
+                    if (result.totalPages > 0 && currentPage > result.totalPages) {
+                        setCurrentPage(1);
+                        setSearchParams(buildParams({ pageVal: 1 }), {
+                            replace: true,
+                        });
+                    }
                 }
             } catch (error) {
                 if (!ignore) {
@@ -100,7 +201,66 @@ export default function ProductsPage() {
         productsPerPage,
         minPrice,
         maxPrice,
+        buildParams,
+        setSearchParams,
     ]);
+
+    // Filter event handlers that update both state and URL query parameters in real-time
+    const handleSearchChange = (e) => {
+        const val = e.target.value;
+        setSearch(val);
+        setCurrentPage(1);
+        setSearchParams(buildParams({ searchVal: val, pageVal: 1 }), {
+            replace: true,
+        });
+    };
+
+    const handleCategoryChange = (e) => {
+        const val = e.target.value;
+        setSelectedCategory(val);
+        setCurrentPage(1);
+        setSearchParams(buildParams({ categoryVal: val, pageVal: 1 }));
+    };
+
+    const handleSortChange = (e) => {
+        const [by, order] = e.target.value.split("-");
+        setSortBy(by);
+        setSortOrder(order);
+        setCurrentPage(1);
+        setSearchParams(
+            buildParams({ sortByVal: by, sortOrderVal: order, pageVal: 1 })
+        );
+    };
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+        setSearchParams(buildParams({ pageVal: newPage }));
+    };
+
+    const handleMinPriceChange = (e) => {
+        const val = e.target.value;
+        setMinPrice(val);
+        setCurrentPage(1);
+        setSearchParams(buildParams({ minPriceVal: val, pageVal: 1 }));
+    };
+
+    const handleMaxPriceChange = (e) => {
+        const val = e.target.value;
+        setMaxPrice(val);
+        setCurrentPage(1);
+        setSearchParams(buildParams({ maxPriceVal: val, pageVal: 1 }));
+    };
+
+    const handleReset = () => {
+        setSearch("");
+        setSelectedCategory("");
+        setSortBy("title");
+        setSortOrder("asc");
+        setCurrentPage(1);
+        setMinPrice("");
+        setMaxPrice("");
+        setSearchParams({});
+    };
 
     const { data: products, total, totalPages } = productsResponse;
     const isFiltered = Boolean(
@@ -109,7 +269,8 @@ export default function ProductsPage() {
         minPrice ||
         maxPrice ||
         sortBy !== "title" ||
-        sortOrder !== "asc"
+        sortOrder !== "asc" ||
+        currentPage > 1
     );
 
     return (
@@ -144,10 +305,7 @@ export default function ProductsPage() {
                             type="text"
                             placeholder="Search products..."
                             value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setCurrentPage(1);
-                            }}
+                            onChange={handleSearchChange}
                             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         />
                     </div>
@@ -155,10 +313,7 @@ export default function ProductsPage() {
                     {/* Category Filter */}
                     <select
                         value={selectedCategory}
-                        onChange={(e) => {
-                            setSelectedCategory(e.target.value);
-                            setCurrentPage(1);
-                        }}
+                        onChange={handleCategoryChange}
                         className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                     >
                         <option value="">All Categories</option>
@@ -167,17 +322,17 @@ export default function ProductsPage() {
                                 {cat}
                             </option>
                         ))}
+                        {selectedCategory && !categories.includes(selectedCategory) && (
+                            <option value={selectedCategory}>
+                                {selectedCategory}
+                            </option>
+                        )}
                     </select>
 
                     {/* Sort */}
                     <select
                         value={`${sortBy}-${sortOrder}`}
-                        onChange={(e) => {
-                            const [by, order] = e.target.value.split("-");
-                            setSortBy(by);
-                            setSortOrder(order);
-                            setCurrentPage(1);
-                        }}
+                        onChange={handleSortChange}
                         className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                     >
                         <option value="title-asc">Name: A → Z</option>
@@ -190,31 +345,29 @@ export default function ProductsPage() {
                     {/* Price Range Filter (Bonus UI) */}
                     <div className="flex items-center gap-2">
                         <div className="relative w-24">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                $
+                            </span>
                             <input
                                 type="number"
                                 min="0"
                                 placeholder="Min"
                                 value={minPrice}
-                                onChange={(e) => {
-                                    setMinPrice(e.target.value);
-                                    setCurrentPage(1);
-                                }}
+                                onChange={handleMinPriceChange}
                                 className="w-full pl-6 pr-2 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                             />
                         </div>
                         <span className="text-gray-400 text-sm">-</span>
                         <div className="relative w-24">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                $
+                            </span>
                             <input
                                 type="number"
                                 min="0"
                                 placeholder="Max"
                                 value={maxPrice}
-                                onChange={(e) => {
-                                    setMaxPrice(e.target.value);
-                                    setCurrentPage(1);
-                                }}
+                                onChange={handleMaxPriceChange}
                                 className="w-full pl-6 pr-2 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                             />
                         </div>
@@ -224,15 +377,7 @@ export default function ProductsPage() {
                     {isFiltered && (
                         <button
                             type="button"
-                            onClick={() => {
-                                setSearch("");
-                                setSelectedCategory("");
-                                setSortBy("title");
-                                setSortOrder("asc");
-                                setMinPrice("");
-                                setMaxPrice("");
-                                setCurrentPage(1);
-                            }}
+                            onClick={handleReset}
                             className="px-3 py-2 text-xs font-medium text-gray-600 hover:text-primary-600 hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors whitespace-nowrap cursor-pointer"
                         >
                             Reset
@@ -280,7 +425,7 @@ export default function ProductsPage() {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-center gap-2">
                             <button
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                                 disabled={currentPage === 1}
                                 className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                             >
@@ -290,7 +435,7 @@ export default function ProductsPage() {
                                 (pageNum) => (
                                     <button
                                         key={pageNum}
-                                        onClick={() => setCurrentPage(pageNum)}
+                                        onClick={() => handlePageChange(pageNum)}
                                         className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                                             currentPage === pageNum
                                                 ? "bg-primary-600 text-white"
@@ -303,7 +448,7 @@ export default function ProductsPage() {
                             )}
                             <button
                                 onClick={() =>
-                                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                                    handlePageChange(Math.min(totalPages, currentPage + 1))
                                 }
                                 disabled={currentPage === totalPages}
                                 className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"

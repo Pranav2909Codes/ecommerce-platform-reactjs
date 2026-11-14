@@ -69,11 +69,11 @@ URL-driven state is a core UX pattern in e-commerce. It enables shareable links,
 - Refreshing the page preserves all active filters
 
 ### Acceptance Criteria
-- [ ] All filter values are reflected in the URL
-- [ ] Page loads with correct filters when URL has parameters
-- [ ] Changing filters updates URL in real-time
-- [ ] Browser navigation (back/forward) works with filter states
-- [ ] Empty/default values are omitted from URL (clean URLs)
+- [x] All filter values are reflected in the URL
+- [x] Page loads with correct filters when URL has parameters
+- [x] Changing filters updates URL in real-time
+- [x] Browser navigation (back/forward) works with filter states
+- [x] Empty/default values are omitted from URL (clean URLs)
 
 ### Edge Cases
 - Invalid parameter values in URL (e.g., `page=999`, `category=NonExistent`)
