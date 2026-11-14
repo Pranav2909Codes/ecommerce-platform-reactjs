@@ -111,11 +111,11 @@ Wishlist is a standard e-commerce feature. Implementing it demonstrates state ma
 - "Remove" button removes item from wishlist
 
 ### Acceptance Criteria
-- [ ] `removeFromWishlist` correctly removes items by ID
-- [ ] Heart icon toggles between active and inactive states
-- [ ] Wishlist page updates in real-time when items are added/removed
-- [ ] "Move to Cart" button works end-to-end
-- [ ] Wishlist count is accurate
+- [x] `removeFromWishlist` correctly removes items by ID
+- [x] Heart icon toggles between active and inactive states
+- [x] Wishlist page updates in real-time when items are added/removed
+- [x] "Move to Cart" button works end-to-end
+- [x] Wishlist count is accurate
 
 ### Edge Cases
 - Adding the same product twice (should not duplicate)

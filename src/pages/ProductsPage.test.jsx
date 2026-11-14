@@ -430,17 +430,30 @@ describe("ProductsPage", () => {
         });
 
         it("should restore previous filter state when navigating back and forward", async () => {
-            let navigateFn;
-            function NavigationHelper() {
+            function NavigationButtons() {
                 const navigate = useNavigate();
-                navigateFn = navigate;
-                return null;
+                return (
+                    <div>
+                        <button
+                            data-testid="nav-back"
+                            onClick={() => navigate(-1)}
+                        >
+                            Back
+                        </button>
+                        <button
+                            data-testid="nav-forward"
+                            onClick={() => navigate(1)}
+                        >
+                            Forward
+                        </button>
+                    </div>
+                );
             }
 
             await act(async () => {
                 root.render(
                     <MemoryRouter initialEntries={["/products"]}>
-                        <NavigationHelper />
+                        <NavigationButtons />
                         <LocationDisplay />
                         <ProductsPage />
                     </MemoryRouter>
@@ -458,16 +471,18 @@ describe("ProductsPage", () => {
             expect(categorySelect.value).toBe("Fashion");
 
             // Navigate back
+            const backButton = container.querySelector('[data-testid="nav-back"]');
             await act(async () => {
-                navigateFn(-1);
+                backButton.click();
             });
 
             // State should restore to initial (empty category)
             expect(categorySelect.value).toBe("");
 
             // Navigate forward
+            const forwardButton = container.querySelector('[data-testid="nav-forward"]');
             await act(async () => {
-                navigateFn(1);
+                forwardButton.click();
             });
 
             // State should restore to Fashion

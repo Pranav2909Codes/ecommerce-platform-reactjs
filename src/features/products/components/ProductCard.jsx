@@ -4,7 +4,7 @@ import useWishlistStore from "../../wishlist/hooks/useWishlistStore";
 
 export default function ProductCard({ product }) {
     const addToCart = useCartStore((s) => s.addToCart);
-    const addToWishlist = useWishlistStore((s) => s.addToWishlist);
+    const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
     const isInWishlist = useWishlistStore((s) => s.isInWishlist(product.id));
 
     const renderStars = (rating) => {
@@ -65,9 +65,10 @@ export default function ProductCard({ product }) {
                 <button
                     onClick={(e) => {
                         e.preventDefault();
-                        addToWishlist(product);
+                        toggleWishlist(product);
                     }}
-                    className={`absolute top-3 right-3 p-2 rounded-full shadow-md transition-all duration-200 ${isInWishlist
+                    aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                    className={`absolute top-3 right-3 p-2 rounded-full shadow-md transition-all duration-200 cursor-pointer ${isInWishlist
                         ? "bg-accent-500 text-white"
                         : "bg-white/90 text-gray-400 hover:text-accent-500"
                         }`}

@@ -78,16 +78,16 @@ export default function WishlistPage() {
                                 <button
                                     onClick={() => {
                                         addToCart(item);
-                                        // Note: removeFromWishlist is not fully implemented
                                         removeFromWishlist(item.id);
                                     }}
-                                    className="flex-1 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors"
+                                    className="flex-1 py-2 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors cursor-pointer"
                                 >
                                     Move to Cart
                                 </button>
                                 <button
                                     onClick={() => removeFromWishlist(item.id)}
-                                    className="px-3 py-2 border border-gray-200 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-200 transition-all"
+                                    aria-label="Remove from wishlist"
+                                    className="px-3 py-2 border border-gray-200 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer"
                                 >
                                     <svg
                                         className="w-4 h-4"

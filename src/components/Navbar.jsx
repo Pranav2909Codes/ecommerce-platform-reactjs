@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import useCartStore from "../features/cart/hooks/useCartStore";
+import useWishlistStore from "../features/wishlist/hooks/useWishlistStore";
 
 export default function Navbar() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const items = useCartStore((s) => s.items);
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+    const wishlistItems = useWishlistStore((s) => s.items);
+    const totalWishlistItems = wishlistItems.length;
 
     const links = [
         { to: "/", label: "Home" },
@@ -34,9 +37,14 @@ export default function Navbar() {
                             <Link
                                 key={link.to}
                                 to={link.to}
-                                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:text-primary-600 hover:bg-primary-50 transition-all duration-200"
+                                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:text-primary-600 hover:bg-primary-50 transition-all duration-200 inline-flex items-center gap-1.5"
                             >
                                 {link.label}
+                                {link.to === "/wishlist" && totalWishlistItems > 0 && (
+                                    <span className="bg-accent-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                        {totalWishlistItems}
+                                    </span>
+                                )}
                             </Link>
                         ))}
                     </div>
@@ -81,9 +89,14 @@ export default function Navbar() {
                                 key={link.to}
                                 to={link.to}
                                 onClick={() => setMobileOpen(false)}
-                                className="block px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:text-primary-600 hover:bg-primary-50 transition-all"
+                                className="block px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:text-primary-600 hover:bg-primary-50 transition-all flex items-center justify-between"
                             >
-                                {link.label}
+                                <span>{link.label}</span>
+                                {link.to === "/wishlist" && totalWishlistItems > 0 && (
+                                    <span className="bg-accent-500 text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                                        {totalWishlistItems}
+                                    </span>
+                                )}
                             </Link>
                         ))}
                     </div>
